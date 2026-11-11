@@ -1,0 +1,16 @@
+{
+  "name": "hotel-reservation-system",
+  "version": "1.0.0",
+  "description": "Team-6 Hotel Reservation System - Full-Stack MERN Application",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "test": "node backend/test-workflows.js",
+    "seed": "node backend/seed/seed.js",
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm run dev"
+  },
+  "keywords": ["hotel", "reservation", "mern", "razorpay", "react", "express", "mongodb"],
+  "author": "Team-6",
+  "license": "ISC"
+}
+

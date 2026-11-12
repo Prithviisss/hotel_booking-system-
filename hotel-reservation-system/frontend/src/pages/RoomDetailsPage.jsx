@@ -139,6 +139,8 @@ const RoomDetailsPage = () => {
               src={activeImage || images[0]}
               alt={roomType.name}
               className="w-full h-full object-cover transition-all duration-500"
+              referrerPolicy="no-referrer-when-downgrade"
+              onError={(e) => { e.target.onerror = null; e.target.src = `https://picsum.photos/seed/${roomType.name}/1200/600`; }}
             />
           </div>
 
@@ -152,7 +154,10 @@ const RoomDetailsPage = () => {
                     activeImage === img ? 'border-gold scale-95 shadow-md' : 'border-beige-border opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt={`view-${idx}`} className="w-full h-full object-cover" />
+                  <img src={img} alt={`view-${idx}`} className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    onError={(e) => { e.target.onerror = null; e.target.src = `https://picsum.photos/seed/${idx}/300/200`; }}
+                  />
                 </button>
               ))}
             </div>

@@ -32,6 +32,11 @@ const RoomCard = ({ room, searchParams }) => {
           alt={roomType.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = `https://picsum.photos/seed/${roomType.name || 'room'}/800/500`;
+          }}
         />
         <div className="absolute top-3 left-3 flex gap-2">
           <span className="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-white/90 backdrop-blur-md text-charcoal rounded-full border border-beige-border shadow-sm">

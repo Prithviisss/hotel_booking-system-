@@ -3,6 +3,18 @@ const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const { razorpayInstance, isMockMode, razorpayKeyId } = require('../config/razorpay');
 
+// Helper to find booking flexibly by bookingId string or ObjectId
+const findBooking = async (idOrBookingId) => {
+  if (!idOrBookingId) return null;
+  const isMongoId = typeof idOrBookingId === 'string' && idOrBookingId.match(/^[0-9a-fA-F]{24}$/);
+  return await Booking.findOne({
+    $or: [
+      { bookingId: idOrBookingId },
+      ...(isMongoId ? [{ _id: idOrBookingId }] : [])
+    ]
+  }).populate('roomType');
+};
+
 // @desc    Create Razorpay Order (or Mock Order) for a pending booking
 // @route   POST /api/payments/create-order
 // @access  Private
@@ -17,9 +29,7 @@ const createPaymentOrder = async (req, res, next) => {
       });
     }
 
-    const booking = await Booking.findOne({
-      $or: [{ bookingId: bookingId }, { _id: bookingId.match(/^[0-9a-fA-F]{24}$/) ? bookingId : null }]
-    }).populate('roomType');
+    const booking = await findBooking(bookingId);
 
     if (!booking) {
       return res.status(404).json({
@@ -46,34 +56,38 @@ const createPaymentOrder = async (req, res, next) => {
     // Amount in paise (1 INR = 100 paise)
     const amountInPaise = Math.round(booking.totalAmount * 100);
 
-    // If real Razorpay credentials are ready
+    // If real Razorpay credentials are ready (bypassed if in mock mode)
     if (razorpayInstance && !isMockMode) {
-      const options = {
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: booking.bookingId,
-        notes: {
+      try {
+        const options = {
+          amount: amountInPaise,
+          currency: 'INR',
+          receipt: booking.bookingId,
+          notes: {
+            bookingId: booking.bookingId,
+            guestName: booking.guestName,
+            guestEmail: booking.guestEmail
+          }
+        };
+
+        const order = await razorpayInstance.orders.create(options);
+
+        return res.json({
+          success: true,
+          orderId: order.id,
+          amount: booking.totalAmount,
+          amountInPaise,
+          currency: 'INR',
+          keyId: razorpayKeyId,
           bookingId: booking.bookingId,
-          guestName: booking.guestName,
-          guestEmail: booking.guestEmail
-        }
-      };
-
-      const order = await razorpayInstance.orders.create(options);
-
-      return res.json({
-        success: true,
-        orderId: order.id,
-        amount: booking.totalAmount,
-        amountInPaise,
-        currency: 'INR',
-        keyId: razorpayKeyId,
-        bookingId: booking.bookingId,
-        isMockMode: false
-      });
+          isMockMode: false
+        });
+      } catch (rzpErr) {
+        console.warn('Razorpay order creation failed, falling back to mock:', rzpErr.message);
+      }
     }
 
-    // Otherwise, generate mock order
+    // Generate mock order
     const mockOrderId = `order_mock_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     return res.json({
@@ -82,10 +96,10 @@ const createPaymentOrder = async (req, res, next) => {
       amount: booking.totalAmount,
       amountInPaise,
       currency: 'INR',
-      keyId: razorpayKeyId,
+      keyId: razorpayKeyId || 'rzp_test_mock',
       bookingId: booking.bookingId,
       isMockMode: true,
-      message: 'Mock Payment Mode is enabled for local development. Choose a simulation scenario to proceed.'
+      message: 'Mock Payment Mode is enabled. Choose a simulation scenario to proceed.'
     });
   } catch (err) {
     next(err);
@@ -113,9 +127,7 @@ const verifyPayment = async (req, res, next) => {
       });
     }
 
-    const booking = await Booking.findOne({
-      $or: [{ bookingId: bookingId }, { _id: bookingId.match(/^[0-9a-fA-F]{24}$/) ? bookingId : null }]
-    });
+    const booking = await findBooking(bookingId);
 
     if (!booking) {
       return res.status(404).json({
@@ -123,6 +135,9 @@ const verifyPayment = async (req, res, next) => {
         message: 'Booking not found'
       });
     }
+
+    // Determine user ID (fallback to booking.user if req.user is absent)
+    const userId = (req.user && req.user._id) || (req.user && req.user.id) || booking.user;
 
     // Prevent duplicate verification
     if (booking.bookingStatus === 'CONFIRMED' && booking.paymentStatus === 'SUCCESS') {
@@ -135,7 +150,7 @@ const verifyPayment = async (req, res, next) => {
       });
     }
 
-    // 1. Mock simulation flow
+    // 1. Mock simulation flow (or when signature is omitted)
     if (isMock || isMockMode || !razorpay_signature) {
       if (simulationType === 'FAILED') {
         booking.paymentStatus = 'FAILED';
@@ -143,7 +158,7 @@ const verifyPayment = async (req, res, next) => {
 
         await Payment.create({
           booking: booking._id,
-          user: req.user.id,
+          user: userId,
           razorpayOrderId: razorpay_order_id || 'mock_order_fail',
           razorpayPaymentId: `pay_mock_fail_${Date.now()}`,
           amount: booking.totalAmount,
@@ -178,7 +193,7 @@ const verifyPayment = async (req, res, next) => {
 
       const payment = await Payment.create({
         booking: booking._id,
-        user: req.user.id,
+        user: userId,
         razorpayOrderId: razorpay_order_id || 'mock_order_success',
         razorpayPaymentId: mockPayId,
         razorpaySignature: 'MOCK_SIGNATURE_VERIFIED',
@@ -220,7 +235,7 @@ const verifyPayment = async (req, res, next) => {
 
       await Payment.create({
         booking: booking._id,
-        user: req.user.id,
+        user: userId,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
@@ -246,7 +261,7 @@ const verifyPayment = async (req, res, next) => {
 
     const payment = await Payment.create({
       booking: booking._id,
-      user: req.user.id,
+      user: userId,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
@@ -280,10 +295,7 @@ const verifyPayment = async (req, res, next) => {
 const getPaymentByBookingId = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-
-    const booking = await Booking.findOne({
-      $or: [{ bookingId: bookingId }, { _id: bookingId.match(/^[0-9a-fA-F]{24}$/) ? bookingId : null }]
-    });
+    const booking = await findBooking(bookingId);
 
     if (!booking) {
       return res.status(404).json({
@@ -314,4 +326,3 @@ module.exports = {
   verifyPayment,
   getPaymentByBookingId
 };
-

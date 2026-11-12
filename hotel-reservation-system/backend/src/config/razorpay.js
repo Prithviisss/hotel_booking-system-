@@ -5,7 +5,18 @@ const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
 let razorpayInstance = null;
 
-if (keyId && keySecret && keyId !== 'rzp_test_placeholder' && keySecret !== 'secret_placeholder') {
+// Only instantiate real Razorpay if genuine live/test keys are supplied
+const isRealKey = Boolean(
+  keyId &&
+  keySecret &&
+  keyId !== 'mock' &&
+  keySecret !== 'mock' &&
+  keyId !== 'rzp_test_placeholder' &&
+  keySecret !== 'secret_placeholder' &&
+  keyId.startsWith('rzp_')
+);
+
+if (isRealKey) {
   try {
     razorpayInstance = new Razorpay({
       key_id: keyId,
@@ -16,12 +27,11 @@ if (keyId && keySecret && keyId !== 'rzp_test_placeholder' && keySecret !== 'sec
     console.warn('⚠️ Razorpay initialization failed:', err.message);
   }
 } else {
-  console.log('ℹ️ Razorpay credentials not configured or placeholder detected. Mock Payment Mode is active.');
+  console.log('ℹ️ Mock Payment Mode is active. Razorpay API skipped.');
 }
 
 module.exports = {
   razorpayInstance,
-  isMockMode: !razorpayInstance,
+  isMockMode: !isRealKey || !razorpayInstance,
   razorpayKeyId: keyId || 'rzp_test_mock_team6'
 };
-

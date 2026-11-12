@@ -24,3 +24,4 @@ services:
         value: mock
       - key: FRONTEND_URL
         sync: false   # You will paste your Vercel URL here after deploying frontend
+

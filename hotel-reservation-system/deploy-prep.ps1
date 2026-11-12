@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 #  deploy-prep.ps1  —  Team-6 Hotel Reservation System
 #  Run this ONCE from the hotel-reservation-system folder:
 #      cd hotel-reservation-system
@@ -73,3 +73,4 @@ Write-Host "   git push -u origin main" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "3. Follow DEPLOY-GUIDE.md for Render + Vercel steps." -ForegroundColor White
 Write-Host ""
+

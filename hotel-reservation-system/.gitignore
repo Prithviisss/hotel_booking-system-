@@ -3,6 +3,11 @@ node_modules/
 .pnp
 .pnp.js
 
+# MongoDB Memory Server binaries (large, auto-downloaded)
+backend/.mongodb-binaries/
+backend/.cache/
+**/.cache/mongodb-memory-server/
+
 # Production builds
 dist/
 build/

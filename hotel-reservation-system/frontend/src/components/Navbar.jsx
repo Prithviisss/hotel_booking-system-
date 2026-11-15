@@ -139,6 +139,12 @@ const Navbar = () => {
                   Sign In
                 </Link>
                 <Link
+                  to="/register"
+                  className="px-4 py-2 text-sm font-medium text-charcoal border border-beige-border hover:border-gold/50 hover:text-gold rounded-full transition"
+                >
+                  Register
+                </Link>
+                <Link
                   to="/rooms"
                   className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold tracking-wide text-white bg-gold hover:bg-gold-dark rounded-full shadow-sm hover:shadow-luxury transition-all duration-200"
                 >
